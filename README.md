@@ -38,7 +38,7 @@ Visit [http://ec2-13-209-11-93.ap-northeast-2.compute.amazonaws.com](http://ec2-
 ### Step 1: Start a new Ubuntu Linux server instance on Amazon Lightsail
 
 <img src="assets/screenshot01.png" alt="screenshot01" width="500">
-<img src="assets/screenshot02.png" alt="screenshot01"  width="500">
+<img src="assets/screenshot02.png" alt="screenshot02"  width="500">
 
 -   [Amazon Lightsail](https://lightsail.aws.amazon.com/ls/webapp/home/resources) using an Amazon Web Services account.
 -   `Create instance`.
@@ -57,3 +57,185 @@ Visit [http://ec2-13-209-11-93.ap-northeast-2.compute.amazonaws.com](http://ec2-
 chmod 600 ~/.ssh/lightsail_key.rsa
 ssh -i ~/.ssh/lightsail_key.rsa ubuntu@13.209.11.93
 ```
+
+---
+
+## Secure the server 🔒
+
+### Step 3: Keep the package up to date.
+
+```
+sudo apt-get update
+sudo apt-get upgrade
+```
+
+### Step 4: Change the SSH port from 22 to 2200
+
+> By the way, I don't wanna use nano editor.
+
+```
+sudo update-alternatives --config editor
+```
+
+> Select Option 3 for using `vim` > <img src="assets/screenshot04.png" alt="screenshot04"  width="500">
+
+**If you are new to using vim, you may not be able to turn off the editor!!🤯 So, experience vimtutor first.**
+
+```sh
+vimtutor
+```
+
+<img src="assets/screenshot05.png" alt="screenshot05"  width="500">
+
+-   Edit the `/etc/ssh/sshd_config` file:
+
+```sh
+sudo vim /etc/ssh/sshd_config
+```
+
+-   Change the port number on line 5 from `22` to `2200`
+-   Save and exit using `:wq`
+-   Restart SSH: `sudo service ssh restart`.
+
+### Step 5: Configure the Uncomplicated Firewall (UFW) 🔥🧱
+
+-   Configure the default firewall for Ubuntu to only allow incoming connections for SSH (port 2200), HTTP (port 80), and NTP (port 123).
+
+```sh
+    sudo ufw status                  # The UFW should be inactive.
+    sudo ufw default deny incoming   # Deny any incoming traffic.
+    sudo ufw default allow outgoing  # Enable outgoing traffic.
+    sudo ufw allow 2200/tcp          # Allow incoming tcp packets on port 2200.
+    sudo ufw allow www               # Allow HTTP traffic in.
+    sudo ufw allow 123/udp           # Allow incoming udp packets on port 123.
+    sudo ufw deny 22                 # Deny tcp and udp packets on port 53.
+```
+
+-   Turn UFW on:
+
+```sh
+sudo ufw enable
+```
+
+-   Check the status of UFW to list current roles:
+
+```
+sudo ufw status
+```
+
+-   Exit the SSH connection:
+
+```
+exit
+```
+
+-   Click on the `Manage` option of the Amazon Lightsail Instance,
+    then the `Networking` tab, and then change the firewall configuration to match the internal firewall settings above. Allow ports 80(TCP), 123(UDP), and 2200(TCP), and deny the default port 22.
+
+<img src="assets/screenshot06.png" alt="screenshot06"  width="500">
+
+```
+ssh -i ~/.ssh/lightsail_key.rsa -p 2200 ubuntu@13.59.39.163
+```
+
+### Step 5.1: Use `Fail2Ban` to ban attackers
+
+> `Fail2Ban` is an intrusion prevention software framework that protects computer servers from brute-force attacks.
+
+-   Install Fail2Ban:
+
+```
+sudo apt-get install fail2ban
+```
+
+-   Install sendmail for email notice
+
+```
+sudo apt-get install sendmail iptables-persistent
+```
+
+-   Create a copy of a file:
+
+```sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+```
+
+-   Change the settings in `/etc/fail2ban/jail.local` file like below:
+
+    > show line number `:set nu`
+
+        ```sh
+        set bantime = 600  # 59 line
+        destemail = useremail@domain # 129 line
+        action = %(action_mwl)s # 204 line
+        port = 2200 # 217 line
+        ```
+
+-   Restart the service:
+
+```
+sudo service fail2ban restart
+```
+
+-   You should receive an email like this:
+
+<img src="assets/screenshot07.png" alt="screenshot07"  width="500">
+
+### Step 5.2: Automatically install updates
+
+> The `unattended-upgrades` package can be used to automatically install important system updates.
+
+-   Enable automatic (security) updates: `sudo apt-get install unattended-upgrades`.
+-   Edit `/etc/apt/apt.conf.d/50unattended-upgrades`, uncomment the line `${distro_id}:${distro_codename}-updates` and save it.
+-   Modify `/etc/apt/apt.conf.d/20auto-upgrades` file like below:
+
+    ```sh
+    APT::Periodic::Update-Package-Lists "1";
+    APT::Periodic::Download-Upgradeable-Packages "1";
+    APT::Periodic::AutocleanInterval "7";
+    APT::Periodic::Unattended-Upgrade "1";
+    ```
+
+-   Enable it:
+
+```
+sudo dpkg-reconfigure --priority=low unattended-upgrades
+```
+
+-   Restart Apache:
+
+```
+sudo service apache2 restart
+```
+
+### Step 5.3: Updated packages to most recent versions
+
+> Some packages have not been updated because the server need to be rebooted.
+
+-   run commands like below:
+
+    ```
+    sudo apt-get update
+    sudo apt-get dist-upgrade
+    sudo shutdown -r now
+    ```
+
+-   Logged back in, and I now see this message:
+
+    ```sh
+    Alains-MBP:udacity-linux-server-configuration boisalai$ ssh -i ~/.ssh/lightsail_key.rsa -p 2200 ubuntu@13.59.39.163
+    Welcome to Ubuntu 16.04.3 LTS (GNU/Linux 4.4.0-1039-aws x86_64)
+
+     * Documentation:  https://help.ubuntu.com
+     * Management:     https://landscape.canonical.com
+     * Support:        https://ubuntu.com/advantage
+
+      Get cloud support with Ubuntu Advantage Cloud Guest:
+        http://www.ubuntu.com/business/services/cloud
+
+    0 packages can be updated.
+    0 updates are security updates.
+
+    Last login: Tue Oct 31 06:35:28 2017 from 24.201.154.77
+    ubuntu@ip-172-26-0-7:~$
+    ```
