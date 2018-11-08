@@ -689,3 +689,8 @@ CLIENT_ID = json.loads(open('/var/www/catalog/catalog/client_secrets.json', 'r')
 
 *   Save and exit using`:wq`.
 *   Reload Apache: `sudo service apache2 reload`.
+
+## Useful commands 🔮
+
+-   To get log messages from Apache server: `sudo tail /var/log/apache2/error.log`.
+-   To restart Apache: `sudo service apache2 restart`.
