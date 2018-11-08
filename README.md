@@ -239,3 +239,79 @@ sudo service apache2 restart
     Last login: Tue Oct 31 06:35:28 2017 from 24.201.154.77
     ubuntu@ip-172-26-0-7:~$
     ```
+
+## Grant `grader` access 🚧
+
+### Step 6: Create a `grader`
+
+-   While logged in as `ubuntu`, add user:
+
+```
+sudo adduser grader
+```
+
+-   Enter a password (e.g. `fsnd2018`) and continue to press enter to set the default value.
+
+### Step 7: Give a `sudo` permission to `grader`
+
+-   Edits the sudoers file:
+
+```
+sudo visudo
+```
+
+-   Search for the line that looks like this:
+
+    > show line number `:set nu`
+
+    ```sh
+    root    ALL=(ALL:ALL) ALL # 20 line
+    ```
+
+-   Below this line, add a new line to give sudo privileges to `grader` user.
+
+    ```sh
+    root    ALL=(ALL:ALL) ALL # 20 line
+    grader  ALL=(ALL:ALL) ALL # 21 line
+    ```
+
+-   Save and exit using `:wq`
+
+-   Verify that `grader` has sudo permissions. Run `su - grader`, enter the password,
+    run `sudo -l` and enter the password again. The output should be like this:
+
+    ```
+    Matching Defaults entries for grader on ip-172-26-13-170.us-east-2.compute.internal:
+        env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+    User grader may run the following commands on ip-172-26-13-170.us-east-2.compute.internal:
+        (ALL : ALL) ALL
+    ```
+
+### Step 8: Create an SSH key pair for `grader` using the `ssh-keygen` tool
+
+**Not a VM linux, But on your local machine**
+
+-   Run `ssh-keygen`
+-   Enter file in which to save the key (e.g. `grader_key`) in the local directory `~/.ssh`
+-   Enter in a passphrase twice (e.g. fsnd2018). Two files will be generated ( `~/.ssh/grader_key` and `~/.ssh/grader_key.pub`)
+-   Run `cat ~/.ssh/grader_key.pub` and copy the contents of the file
+-   Log in to the grader's virtual machine
+
+**Not your local machine, But on VM linux**
+
+-   Create a new directory called `~/.ssh` (`mkdir .ssh`)
+-   Run `sudo vim ~/.ssh/authorized_keys` and paste the content into this file, save and exit
+-   Give the permissions: `chmod 700 .ssh` and `chmod 644 .ssh/authorized_keys`
+-   Check in `/etc/ssh/sshd_config` file if `PasswordAuthentication` is set to `no`
+-   Restart SSH:
+
+```
+sudo service ssh restart
+```
+
+**On your local machine again**
+
+```
+ssh -i ~/.ssh/grader_key -p 2200 grader@13.209.11.93
+```
