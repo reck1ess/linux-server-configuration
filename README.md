@@ -659,3 +659,33 @@ sudo chown -R www-data:www-data catalog/
 -   Open your browser to `http://13.209.11.93` or `http://ec2-13-209-11-93.ap-northeast-2.compute.amazonaws.com`
 
 -   Enjoy my project!
+
+## Fix issues 🔧
+
+### Step 15.1: Log in with Google OAuth
+
+-   When I try to log in with Google OAuth 2.0, I get the following error:
+    ```
+    No such file or directory: 'client_secrets.json'
+    ```
+-   To correct that problem, edit `__init__.py`
+
+-   Near line `27`, replace relative path with absolute path.
+
+```python
+# CLIENT_ID = json.loads(open('client_secrets.json', 'r').read())[
+    'web']['client_id']
+CLIENT_ID = json.loads(open('/var/www/catalog/catalog/client_secrets.json', 'r').read())[
+    'web']['client_id']
+```
+
+-   Near line `219`, replace relative path with absolute path.
+    ```python
+    try:
+          # oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
+          oauth_flow = flow_from_clientsecrets('/var/www/catalog/catalog/client_secrets.json', scope='')
+          oauth_flow.redirect_uri = 'postmessage'
+    ```
+
+*   Save and exit using`:wq`.
+*   Reload Apache: `sudo service apache2 reload`.
