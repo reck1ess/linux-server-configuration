@@ -315,3 +315,113 @@ sudo service ssh restart
 ```
 ssh -i ~/.ssh/grader_key -p 2200 grader@13.209.11.93
 ```
+
+## Prerequisite for deployment 📋
+
+### Step 9: Configure the local timezone to UTC
+
+-   While logged in as `grader`, configure the time zone:
+
+```
+sudo dpkg-reconfigure tzdata
+```
+
+### Step 10: Install and configure Apache to serve a Python mod_wsgi application
+
+-   While logged in as `grader`, install Apache:
+
+```
+sudo apt-get install apache2
+```
+
+-   Install the mod_wsgi package:
+
+```
+sudo apt-get install libapache2-mod-wsgi
+```
+
+-   Enable `mod_wsgi` using:
+
+```
+sudo a2enmod wsgi
+```
+
+### Step 11: Install and configure PostgreSQL
+
+-   While logged in as `grader`, install PostgreSQL:
+
+```
+sudo apt-get install postgresql
+```
+
+-   PostgreSQL should not allow remote connections. So, switch to the `postgres` user:
+
+```
+sudo su - postgres
+```
+
+-   Open PostgreSQL interactive terminal with `psql`.
+
+-   Create the `catalog` user with a password and give them the ability to create databases:
+
+    ```
+    postgres=# CREATE ROLE catalog WITH LOGIN PASSWORD 'catalog';
+    postgres=# ALTER ROLE catalog CREATEDB;
+    ```
+
+-   List the existing roles: `\du`. The output should be like this:
+
+    ```
+                                       List of roles
+     Role name |                         Attributes                         | Member of
+    -----------+------------------------------------------------------------+-----------
+     catalog   | Create DB                                                  | {}
+     postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
+    ```
+
+-   Exit psql: `\q`.
+-   Switch back to the `grader` user: `exit`.
+-   Create a new Linux user called `catalog`: `sudo adduser catalog`. Enter password and fill out information.
+-   Give to `catalog` user the permission to sudo. Run: `sudo visudo`.
+-   Search for the lines that looks like this:
+
+    ```
+    root    ALL=(ALL:ALL) ALL
+    grader  ALL=(ALL:ALL) ALL
+    ```
+
+-   Below this line, add a new line to give sudo privileges to `catalog` user.
+
+    ```
+    root    ALL=(ALL:ALL) ALL
+    grader  ALL=(ALL:ALL) ALL
+    catalog  ALL=(ALL:ALL) ALL
+    ```
+
+-   Save and exit using `:wq`.
+-   Verify that `catalog` has sudo permissions. Run `su - catalog`, enter the password, run `sudo -l` and enter the password again.
+
+-   While logged in as `catalog`, create a database: `createdb catalog`.
+-   Run `psql` and then run `\l` to see that the new database has been created. The output should be like this:
+    ```
+                                      List of databases
+       Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+    -----------+----------+----------+-------------+-------------+-----------------------
+     catalog   | catalog  | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+     postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+     template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+               |          |          |             |             | postgres=CTc/postgres
+     template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+               |          |          |             |             | postgres=CTc/postgres
+    (4 rows)
+    ```
+-   Exit psql: `\q`.
+-   Switch back to the `grader` user: `exit`.
+
+### Step 12: Install git
+
+-   While logged in as `grader`, install `git`:
+
+```
+sudo apt-get install git
+```
