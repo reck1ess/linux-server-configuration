@@ -362,7 +362,7 @@ sudo su - postgres
 
 -   Open PostgreSQL interactive terminal with `psql`.
 
--   Create the `catalog` user with a password and give them the ability to create databases:
+-   Create the `catalog` user with a password (e.g. `catalog`) and give them the ability to create databases:
 
     ```
     postgres=# CREATE ROLE catalog WITH LOGIN PASSWORD 'catalog';
@@ -425,3 +425,237 @@ sudo su - postgres
 ```
 sudo apt-get install git
 ```
+
+## Deploy my project to the world 🌐
+
+### Step 13.1: Clone and setup the Item Catalog project from the GitHub repository
+
+-   While logged in as `grader`, create `/var/www/catalog/` directory.
+
+-   Change to that directory and clone the catalog project:
+
+```
+sudo git clone https://github.com/reck1ess/item-catalog.git catalog
+```
+
+-   From the `/var/www` directory, change the ownership of the `catalog` directory to `grader` using:
+
+```
+sudo chown -R grader:grader catalog/
+```
+
+```sh
+cd /var/www/catalog/catalog
+```
+
+-   Rename the `application.py` file to `__init__.py` using:
+
+```sh
+mv application.py __init__.py
+```
+
+-   In `__init__.py`, replace line immediately below the import statement:
+
+    ```
+    # engine = create_engine("sqlite:///catalog.db")
+     engine = create_engine('postgresql://catalog:catalog@localhost/catalog')
+    ```
+
+-   In `__init__.py`, replace last line:
+
+    ```
+    # app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run()
+    ```
+
+-   In `database_setup.py`, replace last line:
+    ```
+    # engine = create_engine("sqlite:///catalog.db")
+    engine = create_engine('postgresql://catalog:catalog@localhost/catalog')
+    ```
+
+### Step 13.2: Authenticate login through Google
+
+-   Go to [Google Cloud Plateform](https://console.cloud.google.com/)
+
+-   Click `APIs & services` on left menu.
+
+-   Click `Credentials`.
+
+<img src="assets/screenshot08.png" alt="screenshot08"  width="500">
+
+-   Create an OAuth Client ID (under the Credentials tab), and add `http://13.209.11.93` and
+    `http://ec2-13-209-11-93.ap-northeast-2.compute.amazonaws.com` as authorized JavaScript
+    origins.
+
+-   Add `http://ec2-13-209-11-93.ap-northeast-2.compute.amazonaws.com/oauth2callback`
+    as authorized redirect URI.
+
+<img src="assets/screenshot09.png" alt="screenshot09"  width="500">
+
+-   Download the corresponding JSON file, and copy&paste to `/var/www/catalog/catalog/client_secrets.json` file.
+
+-   Replace the client ID to line 67 of the `templates/login.html` file in the project directory.
+
+### Step 14.1: Install the virtual environment and dependencies
+
+-   While logged in as `grader`, install pip:
+
+```
+sudo apt-get install pip
+```
+
+-   Install the virtual environment:
+
+```
+sudo apt-get install python-virtualenv
+```
+
+```
+cd /var/www/catalog/catalog/
+```
+
+-   Create the virtual environment:
+
+```
+sudo virtualenv -p python venv
+```
+
+-   Change the ownership to `grader` with:
+
+```
+sudo chown -R grader:grader venv/
+```
+
+-   Activate the new environment:
+
+```
+. venv/bin/activate
+```
+
+-   Install the following dependencies:
+
+    ```
+    pip install flask
+    pip install httplib2
+    pip install psycopg2
+    pip install requests
+    pip install sqlalchemy
+    pip install sqlalchemy_utils
+    pip install --upgrade oauth2client
+    sudo apt-get install libpq-dev
+    ```
+
+-   Run `python __init__.py` and you should see:
+
+    ```
+    * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+    ```
+
+-   Deactivate the virtual environment: `deactivate`.
+
+### Step 14.2: Set up and enable a virtual host
+
+-   Create config file:
+
+```
+sudo vim /etc/apache2/sites-available/catalog.conf
+```
+
+-   Add following lines to above file:
+
+    ```xml
+    <VirtualHost *:80>
+     ServerName 13.209.11.93
+      ServerAlias http://ec2-13-209-11-93.ap-northeast-2.compute.amazonaws.com
+     WSGIScriptAlias / /var/www/catalog/catalog.wsgi
+     <Directory /var/www/catalog/catalog/>
+     	Order allow,deny
+      Allow from all
+     </Directory>
+     Alias /static /var/www/catalog/catalog/static
+     <Directory /var/www/catalog/catalog/static/>
+      Order allow,deny
+      Allow from all
+     </Directory>
+     ErrorLog ${APACHE_LOG_DIR}/error.log
+     LogLevel warn
+     CustomLog ${APACHE_LOG_DIR}/access.log combined
+    </VirtualHost>
+    ```
+
+-   Enable virtual host:
+
+```
+sudo a2ensite catalog
+```
+
+-   Reload Apache:
+
+```
+sudo service apache2 reload
+```
+
+### Step 14.3: Set up the Flask application
+
+-   Create `/var/www/catalog/catalog.wsgi` file add the following lines:
+
+    ```
+    activate_this = '/var/www/catalog/catalog/venv3/bin/activate_this.py'
+    with open(activate_this) as file_:
+        exec(file_.read(), dict(__file__=activate_this))
+
+    #!/usr/bin/python
+    import sys
+    import logging
+    logging.basicConfig(stream=sys.stderr)
+    sys.path.insert(0, "/var/www/catalog/catalog/")
+    sys.path.insert(1, "/var/www/catalog/")
+
+    from catalog import app as application
+    application.secret_key = "super_secret_key"
+    ```
+
+-   Restart Apache:
+
+```
+sudo service apache2 restart
+```
+
+### Step 14.4: Set up the database schema and populate the database
+
+-   From the `/var/www/catalog/catalog/` directory,
+    activate the virtual environment: `. venv/bin/activate`.
+-   Run: `python seed.py`.
+-   Deactivate the virtual environment: `deactivate`.
+
+### Step 14.5: Disable the default Apache site
+
+-   Disable the default Apache site: `sudo a2dissite 000-default.conf`.
+    The following prompt will be returned:
+
+    ```
+    Site 000-default disabled.
+    To activate the new configuration, you need to run:
+      service apache2 reload
+    ```
+
+-   Reload Apache: `sudo service apache2 reload`.
+
+### Step 14.6: Launch the Web Application
+
+-   Change the ownership of the project directories:
+
+```
+cd ..
+
+# at grader@ip-172-26-3-69:/var/www/catalog
+
+sudo chown -R www-data:www-data catalog/
+```
+
+-   Restart Apache again: `sudo service apache2 restart`.
+
+-   Open your browser to `http://13.209.11.93` or `http://ec2-13-209-11-93.ap-northeast-2.compute.amazonaws.com`
+
+-   Enjoy my project!
