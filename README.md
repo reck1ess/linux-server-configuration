@@ -156,8 +156,8 @@ sudo apt-get install sendmail iptables-persistent
 
 -   Create a copy of a file:
 
-```sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-
+```
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
 ```
 
 -   Change the settings in `/etc/fail2ban/jail.local` file like below:
